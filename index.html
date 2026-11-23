@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Doses Pediátricas de Emergência</title>
+<meta name="description" content="Cálculo rápido de doses pediátricas de emergência pré-hospitalar ajustadas ao peso, com limite de dose máxima.">
+<meta name="theme-color" content="#b3261e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Doses Ped">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --bg:#f4f4f2; --card:#fff; --ink:#16181b; --mute:#5d636b; --line:#e2e2de;
+  --acc:#b3261e; --acc-ink:#fff; --soft:#fbeceb;
+  --ok:#1f6f43; --warn:#8a5a00; --warn-bg:#fff4dc; --err:#a1141a; --err-bg:#fde7e7; --info-bg:#eef2f7;
+  --cap:#a1141a; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0f1012; --card:#1a1c1f; --ink:#f1f1ef; --mute:#a3a8ae; --line:#2c2f33;
+    --acc:#ff6b5e; --acc-ink:#1a0806; --soft:#2a1715;
+    --warn:#ffcf70; --warn-bg:#2b2310; --err:#ff8a84; --err-bg:#331516; --info-bg:#1c2330; --cap:#ff8a84; }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  padding-bottom:env(safe-area-inset-bottom)}
+button{font:inherit;color:inherit;cursor:pointer}
+
+/* ---- barra fixa ---- */
+.top{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);
+  padding:calc(8px + env(safe-area-inset-top)) 12px 8px}
+.brand{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--acc)}
+.brand h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.2px;flex:1}
+.brand #ctx{font-family:var(--mono);font-size:13px;color:var(--mute)}
+.icon-btn{border:1px solid var(--line);background:transparent;border-radius:8px;padding:4px 10px;font-size:13px}
+.inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mute);font-weight:600}
+.box{display:flex;align-items:center;border:2px solid var(--line);border-radius:10px;background:var(--bg);overflow:hidden}
+.box:focus-within{border-color:var(--acc)}
+.box input{flex:1;min-width:0;width:100%;border:0;background:transparent;color:var(--ink);font:700 26px/1 var(--mono);
+  padding:8px 10px;outline:none}
+.box .u{padding:0 10px;color:var(--mute);font-weight:600}
+.seg{display:flex;margin-right:4px;border-radius:7px;overflow:hidden;border:1px solid var(--line)}
+.seg button{border:0;background:transparent;padding:6px 8px;font-size:13px;color:var(--mute)}
+.seg button.on{background:var(--acc);color:var(--acc-ink);font-weight:700}
+.row2{display:flex;gap:8px;margin-top:8px;align-items:center}
+#est{flex:1;text-align:left;border:1px dashed var(--acc);background:var(--soft);color:var(--ink);
+  border-radius:8px;padding:6px 10px;font-size:13px}
+#est span{color:var(--mute)}
+#reset{border:0;background:var(--ink);color:var(--bg);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;white-space:nowrap;margin-left:auto}
+#status:empty{display:none}
+#status{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+
+.tools{background:var(--bg);padding:8px 12px 6px;max-width:760px;margin:0 auto}
+#q{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:16px;outline:none}
+#q:focus{border-color:var(--acc)}
+#chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:14px}
+.chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:700}
+
+/* ---- lista ---- */
+main{padding:0 12px 40px;max-width:760px;margin:0 auto}
+h2.cat{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mute);margin:18px 2px 6px;font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.card.capped{border-left:4px solid var(--cap)}
+.card header{display:flex;gap:10px;align-items:center;padding:12px;cursor:pointer;min-height:60px}
+.nm{flex:1;min-width:0}
+.nm h3{margin:0;font-size:17px;line-height:1.2}
+.nm p{margin:2px 0 0;font-size:13px;color:var(--mute)}
+.rt{font-weight:600;color:var(--ink)}
+.res{text-align:right;flex:none;max-width:58%}
+.dose{font:800 22px/1.1 var(--mono);letter-spacing:-.3px}
+.dose.sm{font-size:17px}
+.dose small.nt{text-transform:none;letter-spacing:0}
+.dose small{display:block;font:600 11px/1.2 -apple-system,sans-serif;color:var(--mute);text-transform:uppercase;letter-spacing:.5px}
+.vol{font:700 16px/1.2 var(--mono);color:var(--acc);margin-top:2px}
+.perkg{font:600 14px/1.25 var(--mono);color:var(--mute)}
+.subs{padding:0 12px 10px;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;margin-top:-4px}
+.badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.4px;padding:3px 7px;border-radius:5px}
+.badge.cap{background:var(--cap);color:#fff}
+.badge.flo{background:var(--warn);color:#fff}
+.badge.ci{background:var(--err-bg);color:var(--err);border:1px solid var(--err)}
+.more{display:none;border-top:1px solid var(--line);padding:10px 12px 12px;font-size:14px}
+.card.open .more{display:block}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.kv:last-child{border-bottom:0}
+.kv span{color:var(--mute);flex:none}
+.kv b{text-align:right;font-weight:600}
+.kv.hi b{color:var(--acc)}
+.maxl{font-weight:700;padding:4px 0 6px}
+.maxl.none{color:var(--warn)}
+.formula{font:13px/1.4 var(--mono);color:var(--mute);background:var(--bg);border-radius:6px;padding:6px 8px;margin-top:6px}
+.note{margin-top:8px;color:var(--mute)}
+.sect{margin-top:10px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--mute);font-weight:700}
+.txt{line-height:1.6}
+table.band{width:100%;border-collapse:collapse;margin-top:4px}
+table.band td{padding:7px 6px;border-bottom:1px solid var(--line)}
+table.band td:last-child{text-align:right;font:700 15px var(--mono)}
+table.band tr.sel td{background:var(--soft);color:var(--acc)}
+.msg{border-radius:8px;padding:7px 10px;font-size:13px}
+.msg.small{margin-top:6px}
+.msg.info{background:var(--info-bg)}
+.msg.warn{background:var(--warn-bg);color:var(--warn)}
+.msg.err{background:var(--err-bg);color:var(--err);font-weight:600}
+.empty{text-align:center;color:var(--mute);padding:40px 0}
+footer{font-size:12px;color:var(--mute);text-align:center;padding:10px 16px 30px;max-width:760px;margin:0 auto}
+
+/* ---- aviso ---- */
+#ack{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
+#ack[hidden]{display:none}
+#ack .sheet{background:var(--card);border-radius:16px 16px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-width:560px;width:100%}
+#ack h2{margin:0 0 8px;font-size:18px}
+#ack p{margin:0 0 10px;font-size:14px;color:var(--mute)}
+#ack ul{margin:0 0 14px;padding-left:18px;font-size:14px}
+#ackBtn{width:100%;border:0;background:var(--acc);color:var(--acc-ink);font-weight:800;padding:14px;border-radius:12px;font-size:16px}
+@media (min-width:700px){ #ack{align-items:center} #ack .sheet{border-radius:16px} }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand">
+    <span class="dot"></span><h1>Doses Pediátricas</h1>
+    <span id="ctx"></span>
+    <button class="icon-btn" id="info" aria-label="Sobre">ⓘ</button>
+  </div>
+  <div class="inputs">
+    <div class="field">
+      <label for="w">Peso</label>
+      <div class="box"><input id="w" size="4" inputmode="decimal" autocomplete="off" placeholder="—" aria-label="Peso em kg"><span class="u">kg</span></div>
+    </div>
+    <div class="field">
+      <label for="age">Idade (opcional)</label>
+      <div class="box"><input id="age" size="3" inputmode="decimal" autocomplete="off" placeholder="—" aria-label="Idade">
+        <div class="seg"><button data-u="meses">m</button><button data-u="anos" class="on">a</button></div></div>
+    </div>
+  </div>
+  <div class="row2">
+    <button id="est" hidden></button>
+    <button id="reset">Novo doente</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<div class="tools">
+  <input id="q" type="search" placeholder="Procurar fármaco ou situação…" autocomplete="off">
+  <div id="chips"></div>
+</div>
+
+<main id="list"></main>
+
+<footer>
+  Baseado no <b>Guia de Emergência Pediátrica</b> (CFC – DRC, outubro 2022). Aplicação independente, não oficial.<br>
+  Ferramenta de apoio à decisão: confirme sempre a dose antes de administrar. · v1.0.0
+</footer>
+
+<div id="ack" hidden>
+  <div class="sheet">
+    <h2>Antes de usar</h2>
+    <p>As doses provêm do Guia de Emergência Pediátrica (CFC – DRC, out. 2022) e são calculadas para o peso introduzido.</p>
+    <ul>
+      <li>Nenhuma dose ultrapassa a dose máxima indicada no guia; quando é limitada, aparece <b>LIMITADO AO MÁXIMO</b>.</li>
+      <li>Quando o guia não indica dose máxima, a app avisa.</li>
+      <li>É uma ferramenta de apoio. A responsabilidade da prescrição e administração é do profissional.</li>
+    </ul>
+    <button id="ackBtn">Compreendo</button>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   Núcleo de cálculo — sem DOM, testável em Node.
+   Fonte única dos dados: Guia de Emergência Pediátrica (CFC–DRC, out. 2022).
+   Regra de ouro: nenhuma dose ultrapassa o máximo indicado no guia.
+   Onde o guia não indica máximo, a app di-lo explicitamente.
+   ========================================================================== */
+
+const GUIDE = 'Guia de Emergência Pediátrica — CFC/DRC, outubro 2022';
+
+const CATS = [
+  { id: 'rcp',   name: 'Reanimação',        short: 'RCP' },
+  { id: 'tsv',   name: 'TSV',               short: 'TSV' },
+  { id: 'anaf',  name: 'Anafilaxia',        short: 'Anafilaxia' },
+  { id: 'asma',  name: 'Asma',              short: 'Asma' },
+  { id: 'croup', name: 'Croup',             short: 'Croup' },
+  { id: 'hipo',  name: 'Hipoglicémia',      short: 'Hipoglicémia' },
+  { id: 'conv',  name: 'Convulsão',         short: 'Convulsão' },
+  { id: 'iot',   name: 'Intubação (SRI)',   short: 'Intubação' },
+  { id: 'antag', name: 'Antagonistas',      short: 'Antagonistas' },
+  { id: 'dor',   name: 'Febre e analgesia', short: 'Dor/Febre' },
+  { id: 'hic',   name: 'HIC',               short: 'HIC' },
+  { id: 'emese', name: 'Antieméticos',      short: 'Antieméticos' },
+  { id: 'hemo',  name: 'Ácido tranexâmico', short: 'Tranexâmico' },
+  { id: 'sed',   name: 'Perfusão de sedação', short: 'Sedação' },
+  { id: 'cat',   name: 'Perfusão de catecolaminas', short: 'Catecolaminas' },
+  { id: 'intox', name: 'Intoxicações e antídotos', short: 'Antídotos' },
+];
+
+/* ---------- formatação ---------- */
+function fmt(x) {
+  if (x === null || x === undefined || !isFinite(x)) return '–';
+  const a = Math.abs(x);
+  const d = a < 10 ? 2 : a < 100 ? 1 : 0;
+  // arredonda primeiro (evita 0,1 + 0,2 = 0,30000000004)
+  const p = Math.pow(10, d);
+  const r = Math.round(x * p) / p;
+  return r.toLocaleString('pt-PT', { maximumFractionDigits: d, useGrouping: false });
+}
+function fmtRange(lo, hi, u) {
+  if (hi === undefined || hi === null || Math.abs(lo - hi) < 1e-9) return fmt(lo) + ' ' + u;
+  return fmt(lo) + ' – ' + fmt(hi) + ' ' + u;
+}
+
+/* ---------- idade ---------- */
+function ageLabel(m) {
+  if (m === null || m === undefined) return '';
+  if (m < 1) return 'RN';
+  if (m < 24) return fmt(m) + (m === 1 ? ' mês' : ' meses');
+  return fmt(m / 12) + ' anos';
+}
+// Fórmulas do guia: <1A (meses+9)/2 · 1–10A 2×idade+8 · >10A 3×idade
+function estimateWeight(ageM) {
+  if (ageM === null || ageM === undefined || ageM < 0) return null;
+  if (ageM < 12) return { w: (ageM + 9) / 2, f: '(idade em meses + 9) / 2' };
+  const y = ageM / 12;
+  if (y <= 10) return { w: 2 * y + 8, f: '2 × idade + 8' };
+  return { w: 3 * y, f: '3 × idade' };
+}
+
+/* ---------- motores de cálculo ---------- */
+function resolve(v, ctx) { return typeof v === 'function' ? v(ctx) : v; }
+
+/* Dose por kg, com máximo (e mínimo) por toma. */
+function calcKg(k, ctx) {
+  const w = ctx.w;
+  const per = Array.isArray(k.per) ? k.per : [k.per];
+  const maxR = resolve(k.max, ctx);
+  const max = maxR && typeof maxR === 'object' ? maxR.v : maxR;
+  const maxNote = maxR && typeof maxR === 'object' ? maxR.note : null;
+  const min = k.min ?? null;
+  const out = {
+    type: 'dose', u: k.u, perKg: fmtRange(per[0], per[1], k.u + '/kg'),
+    max, maxNote, min, conc: k.conc ?? null, concLabel: k.concLabel ?? null,
+    capped: false, floored: false,
+  };
+  if (!w) return out;
+  const vals = per.map(p => {
+    let d = p * w, c = false, f = false;
+    if (max !== null && max !== undefined && d > max) { d = max; c = true; }
+    if (min !== null && d < min) { d = min; f = true; }
+    return { d, c, f };
+  });
+  out.vals = vals;
+  out.capped = vals.some(v => v.c);
+  out.floored = vals.some(v => v.f);
+  out.dose = fmtRange(vals[0].d, vals[1] && vals[1].d, k.u);
+  if (k.conc) {
+    out.vol = fmtRange(vals[0].d / k.conc, vals[1] && vals[1].d / k.conc, 'mL');
+    out.volNum = vals.map(v => v.d / k.conc);
+  }
+  out.formula = per.map(p => `${fmt(p)} ${k.u}/kg × ${fmt(w)} kg = ${fmt(p * w)} ${k.u}`).join('  ·  ');
+  return out;
+}
+
+/* Dose por escalão (idade ou peso). */
+function calcBand(k, ctx) {
+  const v = k.basis === 'age' ? ctx.ageM : ctx.w;
+  const out = { type: 'band', basis: k.basis, rows: k.rows.map(r => ({ label: r.label, dose: r.dose })) };
+  if (v === null || v === undefined) { out.need = k.basis === 'age' ? 'idade' : 'peso'; return out; }
+  const i = k.rows.findIndex(r => r.when(v));
+  out.sel = i;
+  if (i >= 0) out.dose = k.rows[i].dose;
+  return out;
+}
+
+/* Perfusão diluída até 50 mL (regra "X × peso até 50 mL").
+   amt: quantidade por kg a diluir · base: dose correspondente a 1 mL/h ·
+   range: intervalo de dose do guia · amp: concentração da ampola (opcional) */
+function calcInf(k, ctx) {
+  const w = ctx.w;
+  const out = {
+    type: 'inf', du: k.du, range: fmtRange(k.range[0], k.range[1], k.du),
+    rule: `${fmt(k.amt)} ${k.au} × peso até 50 mL ${k.dil}`,
+    equiv: `1 mL/h = ${fmt(k.base)} ${k.du}`,
+    rate: fmtRange(k.range[0] / k.base, k.range[1] / k.base, 'mL/h'),
+    ampLabel: k.amp ? k.amp.label : null,
+  };
+  if (!w) return out;
+  const a = k.amt * w;
+  out.prep = `${fmt(a)} ${k.au}`;
+  if (k.amp) {
+    const v = a / k.amp.c;
+    out.prepVol = `${fmt(v)} mL`;
+    if (v > 50) out.warn = 'O volume de fármaco ultrapassa 50 mL — esta diluição não é exequível com este peso.';
+  }
+  return out;
+}
+
+/* Perfusão de fármaco puro: mL/h = factor × peso × dose */
+function calcPure(k, ctx) {
+  const w = ctx.w;
+  const out = {
+    type: 'pure', du: k.du, range: fmtRange(k.range[0], k.range[1], k.du),
+    rule: `${fmt(k.f)} × peso = mL/h para 1 ${k.du}`, concLabel: k.concLabel,
+  };
+  if (!w) return out;
+  const r1 = k.f * w;
+  out.equiv = `${fmt(r1)} mL/h = 1 ${k.du}`;
+  out.rate = fmtRange(r1 * k.range[0], r1 * k.range[1], 'mL/h');
+  return out;
+}
+
+function compute(drug, ctx) {
+  const k = drug.k;
+  let r;
+  switch (k.t) {
+    case 'kg': r = calcKg(k, ctx); break;
+    case 'band': r = calcBand(k, ctx); break;
+    case 'inf': r = calcInf(k, ctx); break;
+    case 'pure': r = calcPure(k, ctx); break;
+    case 'custom': r = k.fn(ctx); break;
+    case 'text': r = { type: 'text', text: k.text }; break;
+  }
+  const w = drug.warn ? drug.warn(ctx) : null;
+  if (w) r.alert = w;
+  return r;
+}
+
+/* ---------- dados ---------- */
+const ADR_DIL = { conc: 100, concLabel: 'diluída 1 mg em 10 mL (100 mcg/mL)' };
+
+const DRUGS = [
+  /* ===== Reanimação ===== */
+  { id: 'adr-rcp', cat: 'rcp', name: 'Adrenalina', route: 'EV/IO', ind: 'PCR (1:10 000)',
+    k: { t: 'kg', per: 10, u: 'mcg', max: null, ...ADR_DIL },
+    prep: 'Diluir 1 ampola (1:1000) de 1 mg até 10 mL → 0,1 mL/kg (vírgula no peso = mL).',
+    notes: 'FV/TVsp: após o 3.º choque; repetir a cada 3–5 min.', alias: 'epinefrina' },
+  { id: 'amio-rcp', cat: 'rcp', name: 'Amiodarona', route: 'EV/IO', ind: 'FV / TV sem pulso',
+    k: { t: 'kg', per: 5, u: 'mg', max: null, conc: 10, concLabel: 'diluída 150 mg em 15 mL (10 mg/mL)' },
+    prep: 'Diluir 1 ampola de 150 mg até 15 mL → 0,5 mL/kg (½ do peso = mL). Em G5%.',
+    notes: 'Após o 3.º choque; repetir após o 5.º choque.' },
+  { id: 'atro', cat: 'rcp', name: 'Atropina', route: 'EV/IO', ind: 'Bradicardia / reanimação',
+    k: { t: 'kg', per: 20, u: 'mcg', max: null, conc: 100, concLabel: 'diluída 0,5 mg em 5 mL (100 mcg/mL)' },
+    prep: 'Diluir 1 ampola de 0,5 mg até 5 mL → 0,2 mL/kg (dobro da adrenalina = mL).' },
+  { id: 'desfib', cat: 'rcp', name: 'Desfibrilhação', route: 'Choque', ind: 'FV / TV sem pulso',
+    k: { t: 'custom', fn: ctx => {
+      const r = { type: 'dose', u: 'J', perKg: '4 J/kg', max: 360 };
+      if (!ctx.w) return r;
+      const a = Math.min(4 * ctx.w, 360), b = Math.min(8 * ctx.w, 360);
+      r.dose = fmt(a) + ' J'; r.capped = 4 * ctx.w > 360;
+      r.extra = [{ label: 'Se > 5 choques (até 8 J/kg)', value: fmt(b) + ' J', capped: 8 * ctx.w > 360 }];
+      r.formula = `4 J/kg × ${fmt(ctx.w)} kg = ${fmt(4 * ctx.w)} J`;
+      return r;
+    } },
+    notes: 'Pode aumentar-se até 8 J/kg (máx. 360 J) se > 5 choques.' },
+
+  /* ===== TSV ===== */
+  { id: 'aden1', cat: 'tsv', name: 'Adenosina — 1.ª dose', route: 'EV rápido',
+    k: { t: 'kg', per: 0.1, u: 'mg', max: 6, conc: 3, concLabel: 'ampola 6 mg/2 mL (3 mg/mL)' } },
+  { id: 'aden2', cat: 'tsv', name: 'Adenosina — 2.ª dose', route: 'EV rápido',
+    k: { t: 'kg', per: 0.2, u: 'mg', max: 12, conc: 3, concLabel: 'ampola 6 mg/2 mL (3 mg/mL)' } },
+  { id: 'aden3', cat: 'tsv', name: 'Adenosina — 3.ª dose', route: 'EV rápido',
+    k: { t: 'kg', per: 0.3, u: 'mg', max: 18, conc: 3, concLabel: 'ampola 6 mg/2 mL (3 mg/mL)' } },
+  { id: 'cardiov', cat: 'tsv', name: 'Cardioversão sincronizada', route: 'Choque',
+    k: { t: 'custom', fn: ctx => {
+      const r = { type: 'dose', u: 'J', perKg: '1 → 2 → 4 J/kg', max: null };
+      if (!ctx.w) return r;
+      r.dose = fmt(1 * ctx.w) + ' J';
+      r.doseLabel = '1.º choque';
+      r.extra = [
+        { label: '2.º choque (2 J/kg)', value: fmt(2 * ctx.w) + ' J' },
+        { label: '3.º choque (4 J/kg)', value: fmt(4 * ctx.w) + ' J' },
+      ];
+      r.formula = `1 J/kg × ${fmt(ctx.w)} kg = ${fmt(ctx.w)} J`;
+      return r;
+    } } },
+  { id: 'amio-tsv', cat: 'tsv', name: 'Amiodarona', route: 'EV em 20 min', ind: 'TSV',
+    k: { t: 'kg', per: 5, u: 'mg', max: null, conc: 10, concLabel: 'diluída 150 mg em 15 mL (10 mg/mL)' } },
+
+  /* ===== Anafilaxia ===== */
+  { id: 'adr-im', cat: 'anaf', name: 'Adrenalina', route: 'IM', ind: 'Anafilaxia (1:1000 = 1 mg/mL)',
+    k: { t: 'band', basis: 'age', rows: [
+      { label: '< 6 meses', when: m => m < 6, dose: '0,05 mL (0,05 mg)' },
+      { label: '6 meses – 6 anos', when: m => m >= 6 && m < 72, dose: '0,15 mL (0,15 mg)' },
+      { label: '6 – 12 anos', when: m => m >= 72 && m <= 144, dose: '0,3 mL (0,3 mg)' },
+      { label: '> 12 anos', when: m => m > 144, dose: '0,5 mL (0,5 mg)' },
+    ] },
+    notes: 'Se necessário, repetir após 5 min.', alias: 'epinefrina' },
+  { id: 'crist', cat: 'anaf', name: 'Cristaloide', route: 'EV/IO', ind: 'Bólus',
+    k: { t: 'kg', per: 10, u: 'mL', max: null } },
+  { id: 'clem', cat: 'anaf', name: 'Clemastina', route: 'EV/IM',
+    k: { t: 'kg', per: 0.025, u: 'mg', max: 2 } },
+  { id: 'hidrox', cat: 'anaf', name: 'Hidroxizina', route: 'IM',
+    k: { t: 'kg', per: 1, u: 'mg', max: 100 } },
+  { id: 'hc-anaf', cat: 'anaf', name: 'Hidrocortisona', route: 'EV/IM', ind: 'Anafilaxia',
+    k: { t: 'custom', fn: ctx => {
+      const r = calcKg({ per: 4, u: 'mg', max: null }, ctx);
+      const b = calcBand({ basis: 'age', rows: HC_BANDS }, ctx);
+      r.band = b;
+      return r;
+    } },
+    notes: 'O guia indica 4 mg/kg e, em paralelo, uma dose por idade (tabela abaixo).' },
+
+  /* ===== Asma ===== */
+  { id: 'salb-neb', cat: 'asma', name: 'Salbutamol', route: 'Nebulização',
+    k: { t: 'kg', per: 1, u: 'gotas', min: 7, max: 24 },
+    notes: '1 gota/kg — mínimo 7, máximo 24 gotas.' },
+  { id: 'salb-inal', cat: 'asma', name: 'Salbutamol', route: 'Inalador (pMDI)',
+    k: { t: 'band', basis: 'weight', rows: [
+      { label: '≤ 20 kg', when: w => w <= 20, dose: '2 a 3 puffs' },
+      { label: '> 20 kg', when: w => w > 20, dose: '4 a 6 puffs' },
+    ] } },
+  { id: 'salb-ev', cat: 'asma', name: 'Salbutamol', route: 'Perfusão EV',
+    k: { t: 'inf', amt: 1.5, au: 'mg', dil: 'SF/G5%', base: 0.5, du: 'mcg/kg/min', range: [0.5, 2] } },
+  { id: 'ipra-neb', cat: 'asma', name: 'Brometo de ipratrópio', route: 'Nebulização',
+    k: { t: 'band', basis: 'weight', rows: [
+      { label: '< 15 kg', when: w => w < 15, dose: '125 mcg' },
+      { label: '15 – 30 kg', when: w => w >= 15 && w <= 30, dose: '250 mcg' },
+      { label: '> 30 kg', when: w => w > 30, dose: '500 mcg' },
+    ] } },
+  { id: 'ipra-inal', cat: 'asma', name: 'Brometo de ipratrópio', route: 'Inalador',
+    k: { t: 'text', text: '2 puffs a cada 20 min / SOS, depois a cada 6 h' } },
+  { id: 'hc-asma', cat: 'asma', name: 'Hidrocortisona', route: 'EV/IM', ind: 'Asma',
+    k: { t: 'kg', per: 4, u: 'mg', max: null } },
+  { id: 'mg', cat: 'asma', name: 'Sulfato de magnésio', route: 'EV em 30 min',
+    k: { t: 'kg', per: 50, u: 'mg', max: 2000 },
+    prep: 'Diluir em 50 mL de SF; administrar em 30 min.' },
+  { id: 'amino', cat: 'asma', name: 'Aminofilina', route: 'EV em 30 min',
+    k: { t: 'kg', per: 5, u: 'mg', max: 240 },
+    prep: 'Diluir em 24 mL de SF; administrar em 30 min.' },
+
+  /* ===== Croup ===== */
+  { id: 'adr-neb', cat: 'croup', name: 'Adrenalina', route: 'Nebulização', ind: 'Croup',
+    k: { t: 'kg', per: [0.1, 0.5], u: 'mL', max: ctx => {
+      if (ctx.ageM === null || ctx.ageM === undefined)
+        return { v: 2.5, note: 'Sem idade: aplicado o máximo mais baixo (≤ 4 anos: 2,5 mL).' };
+      return ctx.ageM <= 48 ? { v: 2.5, note: '≤ 4 anos: máx. 2,5 mL' } : { v: 5, note: '> 4 anos: máx. 5 mL' };
+    } },
+    prep: 'Diluir em 3 mL de SF.', alias: 'epinefrina' },
+  { id: 'dexa', cat: 'croup', name: 'Dexametasona', route: 'Oral',
+    k: { t: 'kg', per: 0.6, u: 'mg', max: 10 },
+    notes: 'Pode usar-se por via oral a ampola EV.' },
+
+  /* ===== Hipoglicémia ===== */
+  { id: 'glic', cat: 'hipo', name: 'Glicose', route: 'EV/IO', ind: 'RN < 40 mg/dL · lactente/criança < 60 mg/dL',
+    k: { t: 'custom', fn: ctx => {
+      const r = { type: 'dose', u: 'mL', perKg: 'RN: G10% 2,5 mL/kg · < 30 kg: G30% 2 mL/kg ou G10% 5 mL/kg' };
+      if (!ctx.w) return r;
+      const rn = ctx.ageM !== null && ctx.ageM !== undefined && ctx.ageM < 1;
+      const old = (ctx.ageM !== null && ctx.ageM !== undefined && ctx.ageM > 120) || ctx.w >= 30;
+      if (rn) {
+        r.dose = fmt(2.5 * ctx.w) + ' mL de G10%';
+        r.formula = `2,5 mL/kg × ${fmt(ctx.w)} kg`;
+      } else if (old) {
+        r.dose = '1 ampola de G30% (20 mL)';
+        r.formula = '> 10 anos ou ≥ 30 kg';
+      } else {
+        r.dose = fmt(2 * ctx.w) + ' mL de G30%';
+        r.extra = [{ label: 'ou G10%', value: fmt(5 * ctx.w) + ' mL' }];
+        r.formula = `G30% 2 mL/kg · G10% 5 mL/kg × ${fmt(ctx.w)} kg`;
+        if (ctx.ageM === null || ctx.ageM === undefined) r.note = 'Se for RN, indique a idade (dose diferente).';
+      }
+      return r;
+    } },
+    prep: 'G10%: retirar 20 mL a um balão de 100 mL de G5% e juntar 1 ampola de G30% (20 mL).' },
+  { id: 'glucagon-hipo', cat: 'hipo', name: 'Glucagon', route: 'IM/SC', ind: 'Hipoglicémia',
+    k: { t: 'band', basis: 'weight', rows: [
+      { label: '≤ 25 kg', when: w => w <= 25, dose: '0,5 mL' },
+      { label: '> 25 kg', when: w => w > 25, dose: '1 mL' },
+    ] } },
+
+  /* ===== Convulsão ===== */
+  { id: 'diaz-ev', cat: 'conv', name: 'Diazepam', route: 'EV',
+    k: { t: 'kg', per: [0.15, 0.2], u: 'mg', max: null } },
+  { id: 'diaz-rect', cat: 'conv', name: 'Diazepam', route: 'Retal',
+    k: { t: 'band', basis: 'age', rows: [
+      { label: '< 5 anos', when: m => m < 60, dose: '5 mg' },
+      { label: '≥ 5 anos', when: m => m >= 60, dose: '10 mg' },
+    ] },
+    notes: 'Corresponde a ≈ 0,5 mg/kg.' },
+  { id: 'mdz-in', cat: 'conv', name: 'Midazolam', route: 'Intranasal',
+    k: { t: 'kg', per: 0.2, u: 'mg', max: null, conc: 5, concLabel: 'ampola pura 15 mg/3 mL (5 mg/mL)' } },
+  { id: 'mdz-ev', cat: 'conv', name: 'Midazolam', route: 'EV',
+    k: { t: 'kg', per: [0.1, 0.3], u: 'mg', max: null, conc: 1, concLabel: 'diluído 15 mg em 15 mL (1 mg/mL)' } },
+  { id: 'mdz-im', cat: 'conv', name: 'Midazolam', route: 'IM',
+    k: { t: 'kg', per: [0.1, 0.2], u: 'mg', max: null, conc: 5, concLabel: 'ampola pura 15 mg/3 mL (5 mg/mL)' } },
+  { id: 'leve', cat: 'conv', name: 'Levetiracetam', route: 'EV em 15 min',
+    k: { t: 'kg', per: 40, u: 'mg', max: 1500 },
+    notes: 'Intervalo do guia: 20–60 mg/kg.' },
+  { id: 'feni', cat: 'conv', name: 'Fenitoína', route: 'EV em 20 min',
+    k: { t: 'kg', per: 20, u: 'mg', max: 1500 },
+    prep: 'Diluir em 20 mL de SF; sistema opaco.' },
+  { id: 'valp', cat: 'conv', name: 'Ácido valpróico', route: 'EV em 15 min',
+    k: { t: 'kg', per: 30, u: 'mg', max: 3000 },
+    notes: 'Intervalo do guia: 20–40 mg/kg.' },
+
+  /* ===== Intubação ===== */
+  { id: 'iot-mdz', cat: 'iot', name: 'Midazolam', route: 'EV', ind: 'Sedativo',
+    k: { t: 'kg', per: 0.1, u: 'mg', max: null, conc: 1, concLabel: 'diluído 15 mg em 15 mL (1 mg/mL)' },
+    prep: 'Ampola 15 mg/3 mL → diluir até 15 mL (1 mg/mL) → 0,1 mL/kg.',
+    notes: 'Evitar se compromisso hemodinâmico.',
+    warn: ctx => (ctx.ageM !== null && ctx.ageM !== undefined && ctx.ageM < 1) ? 'Contraindicado no RN pré-termo.' : null },
+  { id: 'iot-fent', cat: 'iot', name: 'Fentanil', route: 'EV', ind: 'Analgésico',
+    k: { t: 'kg', per: 1, u: 'mcg', max: null, conc: 10, concLabel: 'diluído 1 mL em 5 mL (10 mcg/mL)' },
+    prep: 'Ampola 50 mcg/mL → diluir 1 mL até 5 mL (10 mcg/mL) → 0,1 mL/kg.',
+    notes: 'Menos efeitos cardiovasculares; início de ação mais rápido.' },
+  { id: 'iot-roc', cat: 'iot', name: 'Rocurónio', route: 'EV', ind: 'Relaxante muscular',
+    k: { t: 'kg', per: [0.6, 1], u: 'mg', max: null, conc: 10, concLabel: 'puro 50 mg/5 mL (10 mg/mL)' },
+    notes: 'Usar com experiência em intubação endotraqueal.' },
+  { id: 'iot-prop', cat: 'iot', name: 'Propofol 1%', route: 'EV', ind: 'Anestésico',
+    k: { t: 'kg', per: [1, 2], u: 'mg', max: null, conc: 10, concLabel: 'puro (10 mg/mL)' },
+    notes: 'Efeito anticonvulsivante e protetor cerebral.',
+    warn: ctx => (ctx.ageM !== null && ctx.ageM !== undefined && ctx.ageM < 1) ? 'Não usar abaixo de 1 mês.' : null },
+  { id: 'iot-ket', cat: 'iot', name: 'Cetamina', route: 'EV', ind: 'Anestésico',
+    k: { t: 'kg', per: [1, 2], u: 'mg', max: null, conc: 10, concLabel: 'diluída 1 mL em 5 mL (10 mg/mL)' },
+    prep: 'Ampola 50 mg/mL → diluir 1 mL até 5 mL (10 mg/mL).',
+    notes: 'Sedativo, analgésico e broncodilatador. Ponderar associar midazolam e atropina (alucinações e broncorreia).',
+    alias: 'ketamina' },
+  { id: 'iot-tio', cat: 'iot', name: 'Tiopental', route: 'EV', ind: 'Anestésico',
+    k: { t: 'kg', per: [3, 5], u: 'mg', max: null, conc: 25, concLabel: '500 mg em 20 mL de água (25 mg/mL)' },
+    notes: 'Protetor cerebral, diminui a PIC, hipotensor.' },
+  { id: 'iot-eto', cat: 'iot', name: 'Etomidato', route: 'EV', ind: 'Anestésico',
+    k: { t: 'kg', per: 0.3, u: 'mg', max: null, conc: 2, concLabel: 'puro 20 mg/10 mL (2 mg/mL)' },
+    notes: 'Boa opção na instabilidade hemodinâmica. NÃO usar no choque séptico.' },
+  { id: 'iot-sug', cat: 'iot', name: 'Combinações sugeridas', route: 'SRI',
+    k: { t: 'text', text:
+      '1.ª linha: Fentanil + Midazolam/Propofol + Rocurónio\n' +
+      'TCE / convulsões / HIC / encefalopatia: Fentanil + Propofol + Rocurónio\n' +
+      'Instabilidade hemodinâmica / asma: Fentanil + Cetamina + Rocurónio\n' +
+      'Mal epilético: Fentanil + Tiopental + Rocurónio\n' +
+      'HIC grave: Fentanil + Propofol + Rocurónio\n' +
+      'Recém-nascidos: Fentanil (ou Midazolam) + Atropina (+ RM)' } },
+
+  /* ===== Antagonistas ===== */
+  { id: 'nalox-rn', cat: 'antag', name: 'Naloxona', route: 'EV/IM', ind: 'Fentanil — RN',
+    k: { t: 'kg', per: 0.1, u: 'mg', max: 0.4 } },
+  { id: 'nalox-cr', cat: 'antag', name: 'Naloxona', route: 'EV/IM', ind: 'Fentanil — crianças',
+    k: { t: 'text', text: '0,4 – 0,8 mg/dose (dose fixa)' } },
+  { id: 'fluma', cat: 'antag', name: 'Flumazenil', route: 'EV', ind: 'Midazolam',
+    k: { t: 'kg', per: 0.01, u: 'mg', max: null } },
+  { id: 'suga', cat: 'antag', name: 'Sugamadex', route: 'EV', ind: 'Rocurónio / vecurónio',
+    k: { t: 'kg', per: 2, u: 'mg', max: null } },
+  { id: 'neo', cat: 'antag', name: 'Neostigmina + Atropina', route: 'EV', ind: 'Rocurónio / vecurónio',
+    k: { t: 'custom', fn: ctx => {
+      const r = calcKg({ per: 0.04, u: 'mg', max: null }, ctx);
+      r.perKg = 'Neostigmina 0,04 mg/kg + Atropina 0,02 mg/kg';
+      if (ctx.w) {
+        r.doseLabel = 'Neostigmina';
+        r.extra = [{ label: 'Atropina (0,02 mg/kg)', value: fmt(0.02 * ctx.w) + ' mg' }];
+      }
+      return r;
+    } } },
+
+  /* ===== Febre e analgesia ===== */
+  { id: 'para', cat: 'dor', name: 'Paracetamol', route: 'PO/EV',
+    k: { t: 'custom', fn: ctx => {
+      const rn = ctx.ageM !== null && ctx.ageM !== undefined && ctx.ageM < 1;
+      const r = calcKg({ per: 15, u: 'mg', max: null }, ctx);
+      if (ctx.w) r.extra = [{ label: 'RN — EV 7,5 mg/kg', value: fmt(7.5 * ctx.w) + ' mg', hi: rn }];
+      if (rn) r.note = 'RN: por via EV usar 7,5 mg/kg.';
+      return r;
+    } } },
+  { id: 'para-rect', cat: 'dor', name: 'Paracetamol', route: 'Retal',
+    k: { t: 'band', basis: 'weight', rows: [
+      { label: '< 10 kg', when: w => w < 10, dose: '125 mg' },
+      { label: '10 – 20 kg', when: w => w >= 10 && w <= 20, dose: '250 mg' },
+      { label: '> 20 kg', when: w => w > 20, dose: '500 mg' },
+    ] } },
+  { id: 'morf', cat: 'dor', name: 'Morfina', route: 'EV',
+    k: { t: 'kg', per: [0.05, 0.2], u: 'mg', max: null, conc: 1, concLabel: 'diluída 10 mg em 10 mL (1 mg/mL)' } },
+  { id: 'fent-dor', cat: 'dor', name: 'Fentanil', route: 'EV',
+    k: { t: 'kg', per: 1, u: 'mcg', max: null, conc: 10, concLabel: 'diluído 1 mL (50 mcg) em 5 mL (10 mcg/mL)' } },
+  { id: 'ket-im', cat: 'dor', name: 'Cetamina', route: 'IM',
+    k: { t: 'kg', per: [3, 4], u: 'mg', max: null, conc: 50, concLabel: 'ampola pura 50 mg/mL' },
+    notes: 'Pode repetir-se após 10 min.', alias: 'ketamina' },
+
+  /* ===== HIC ===== */
+  { id: 'manitol', cat: 'hic', name: 'Manitol 10%', route: 'EV em 10–20 min',
+    k: { t: 'kg', per: 0.25, u: 'g', max: null, conc: 0.1, concLabel: '10% (0,1 g/mL) = 2,5 mL/kg' } },
+  { id: 'nacl3', cat: 'hic', name: 'NaCl 3%', route: 'EV em 10–20 min', ind: 'Bólus',
+    k: { t: 'kg', per: [3, 5], u: 'mL', max: null },
+    prep: 'NaCl 3%: 11 mL de NaCl 20% + 89 mL de SF, ou 85 mL de água destilada + 15 mL de NaCl 20%.' },
+  { id: 'nacl3-perf', cat: 'hic', name: 'NaCl 3%', route: 'Perfusão', ind: 'Perfusão contínua',
+    k: { t: 'custom', fn: ctx => {
+      const r = { type: 'dose', u: 'mL/h', perKg: '0,1 – 1 mL/kg/h', max: null };
+      if (!ctx.w) return r;
+      r.dose = fmtRange(0.1 * ctx.w, 1 * ctx.w, 'mL/h');
+      r.formula = `0,1–1 mL/kg/h × ${fmt(ctx.w)} kg`;
+      return r;
+    } } },
+  { id: 'tio-hic', cat: 'hic', name: 'Tiopental', route: 'EV', ind: 'HIC',
+    k: { t: 'kg', per: [3, 5], u: 'mg', max: null, conc: 25, concLabel: '500 mg em 20 mL de água (25 mg/mL)' } },
+
+  /* ===== Antieméticos ===== */
+  { id: 'meto', cat: 'emese', name: 'Metoclopramida', route: 'EV',
+    k: { t: 'kg', per: [0.1, 0.3], u: 'mg', max: 10 },
+    notes: 'O guia indica "máx. 10–15 mg": a app aplica o limite inferior (10 mg).' },
+  { id: 'ond-p', cat: 'emese', name: 'Ondansetron', route: 'EV', ind: 'Profilaxia',
+    k: { t: 'kg', per: 0.15, u: 'mg', max: 4 } },
+  { id: 'ond-t', cat: 'emese', name: 'Ondansetron', route: 'EV', ind: 'Tratamento',
+    k: { t: 'kg', per: 0.2, u: 'mg', max: 8 } },
+
+  /* ===== Ácido tranexâmico ===== */
+  { id: 'atx-b', cat: 'hemo', name: 'Ácido tranexâmico', route: 'EV', ind: 'Bólus',
+    k: { t: 'kg', per: [15, 20], u: 'mg', max: 1000 } },
+  { id: 'atx-p', cat: 'hemo', name: 'Ácido tranexâmico', route: 'Perfusão em 8 h', ind: 'Após o bólus',
+    k: { t: 'custom', fn: ctx => {
+      const r = { type: 'dose', u: 'mg/h', perKg: '2 mg/kg/h durante 8 h (máx. 1 g)', max: 1000 };
+      if (!ctx.w) return r;
+      const total = 16 * ctx.w;
+      const tot = Math.min(total, 1000);
+      r.capped = total > 1000;
+      r.dose = fmt(tot / 8) + ' mg/h';
+      r.extra = [{ label: 'Total em 8 h', value: fmt(tot) + ' mg', capped: r.capped }];
+      r.formula = `2 mg/kg/h × ${fmt(ctx.w)} kg = ${fmt(2 * ctx.w)} mg/h`;
+      return r;
+    } } },
+
+  /* ===== Perfusão de sedação (até 50 mL) ===== */
+  { id: 'p-mdz', cat: 'sed', name: 'Midazolam', route: 'Perfusão',
+    k: { t: 'inf', amt: 5, au: 'mg', dil: 'SF', base: 0.1, du: 'mg/kg/h', range: [0.1, 0.9],
+         amp: { c: 5, label: 'ampola 15 mg/3 mL' } } },
+  { id: 'p-fent', cat: 'sed', name: 'Fentanil', route: 'Perfusão',
+    k: { t: 'inf', amt: 50, au: 'mcg', dil: 'SF', base: 1, du: 'mcg/kg/h', range: [1, 9],
+         amp: { c: 50, label: 'ampola 50 mcg/mL' } } },
+  { id: 'p-morf', cat: 'sed', name: 'Morfina', route: 'Perfusão',
+    k: { t: 'inf', amt: 1, au: 'mg', dil: 'SF', base: 20, du: 'mcg/kg/h', range: [5, 20],
+         amp: { c: 10, label: 'ampola 10 mg/mL' } } },
+  { id: 'p-prop', cat: 'sed', name: 'Propofol 1%', route: 'Perfusão (puro)',
+    k: { t: 'pure', f: 0.1, du: 'mg/kg/h', range: [1, 4], concLabel: 'puro, 10 mg/mL' } },
+  { id: 'p-ket', cat: 'sed', name: 'Cetamina', route: 'Perfusão',
+    k: { t: 'inf', amt: 30, au: 'mg', dil: 'SF', base: 10, du: 'mcg/kg/min', range: [10, 40] },
+    alias: 'ketamina' },
+  { id: 'p-tio', cat: 'sed', name: 'Tiopental', route: 'Perfusão (25 mg/mL)',
+    k: { t: 'pure', f: 0.04, du: 'mg/kg/h', range: [1, 5], concLabel: '500 mg em 20 mL (25 mg/mL)' } },
+
+  /* ===== Catecolaminas (até 50 mL) ===== */
+  { id: 'dopa', cat: 'cat', name: 'Dopamina', route: 'Perfusão', ind: 'Choque refratário a volume · acesso periférico',
+    k: { t: 'inf', amt: 3, au: 'mg', dil: 'SF', base: 1, du: 'mcg/kg/min', range: [5, 15],
+         amp: { c: 40, label: 'ampola 200 mg/5 mL' } } },
+  { id: 'dobu', cat: 'cat', name: 'Dobutamina', route: 'Perfusão', ind: 'Choque cardiogénico',
+    k: { t: 'inf', amt: 3, au: 'mg', dil: 'SF', base: 1, du: 'mcg/kg/min', range: [5, 15],
+         amp: { c: 12.5, label: 'ampola 250 mg/20 mL' } } },
+  { id: 'nora', cat: 'cat', name: 'Noradrenalina', route: 'Perfusão', ind: 'Choque séptico / neurogénico · acesso central',
+    k: { t: 'inf', amt: 0.3, au: 'mg', dil: 'G5%', base: 0.1, du: 'mcg/kg/min', range: [0.05, 2],
+         amp: { c: 1, label: 'ampola 1 mg/mL' } }, alias: 'norepinefrina' },
+  { id: 'adr-p', cat: 'cat', name: 'Adrenalina', route: 'Perfusão', ind: 'Choque séptico / anafilático · central ou periférico',
+    k: { t: 'inf', amt: 0.3, au: 'mg', dil: 'SF', base: 0.1, du: 'mcg/kg/min', range: [0.05, 2],
+         amp: { c: 1, label: 'ampola 1 mg/mL' } }, alias: 'epinefrina' },
+  { id: 'iso', cat: 'cat', name: 'Isoprenalina', route: 'Perfusão',
+    k: { t: 'inf', amt: 0.3, au: 'mg', dil: 'G5%', base: 0.1, du: 'mcg/kg/min', range: [0.1, 0.8],
+         amp: { c: 1, label: 'ampola 1 mg/mL' } } },
+
+  /* ===== Intoxicações e antídotos ===== */
+  { id: 'carvao', cat: 'intox', name: 'Carvão ativado', route: 'Oral/SNG',
+    k: { t: 'kg', per: [1, 2], u: 'g', max: null }, notes: 'CIAV: 800 250 250' },
+  { id: 'bic', cat: 'intox', name: 'Bicarbonato de sódio', route: 'EV', ind: 'Antidepressivos tricíclicos · neurolépticos',
+    k: { t: 'kg', per: [0.5, 2], u: 'mEq', max: 50 },
+    notes: 'Tricíclicos: dose tóxica 10 mg/kg, letal se 30 mg/kg.' },
+  { id: 'fiso', cat: 'intox', name: 'Fisostigmina', route: 'EV', ind: 'Anti-histamínicos',
+    k: { t: 'kg', per: [0.01, 0.03], u: 'mg', max: 0.5 } },
+  { id: 'fluma-i', cat: 'intox', name: 'Flumazenil', route: 'EV', ind: 'Benzodiazepinas',
+    k: { t: 'kg', per: 0.01, u: 'mg', max: null }, notes: 'Cada 1 min.' },
+  { id: 'glucagon-b', cat: 'intox', name: 'Glucagon', route: 'EV', ind: 'Bloqueadores β',
+    k: { t: 'kg', per: [0.03, 0.1], u: 'mg', max: null } },
+  { id: 'neo-i', cat: 'intox', name: 'Neostigmina', route: 'EV', ind: 'Bloqueadores neuromusculares (+ atropina)',
+    k: { t: 'kg', per: 0.04, u: 'mg', max: null } },
+  { id: 'nalox-op', cat: 'intox', name: 'Naloxona', route: 'EV', ind: 'Opióides',
+    k: { t: 'kg', per: 0.01, u: 'mg', max: 0.4 }, notes: 'Cada 2 min.' },
+  { id: 'desfer', cat: 'intox', name: 'Desferrioxamina', route: 'EV', ind: 'Ferro',
+    k: { t: 'custom', fn: ctx => {
+      const r = { type: 'dose', u: 'mg/h', perKg: '15 mg/kg/h', max: null };
+      if (!ctx.w) return r;
+      r.dose = fmt(15 * ctx.w) + ' mg/h';
+      r.formula = `15 mg/kg/h × ${fmt(ctx.w)} kg`;
+      return r;
+    } } },
+  { id: 'octreo', cat: 'intox', name: 'Octreótido', route: 'q6h', ind: 'Sulfonilureias',
+    k: { t: 'kg', per: 1, u: 'mcg', max: 50 },
+    notes: 'O guia indica "adulto 50 mcg": a app usa-o como dose máxima.' },
+  { id: 'vitk', cat: 'intox', name: 'Vitamina K', route: 'EV/IM', ind: 'Anticoagulantes orais',
+    k: { t: 'text', text: '1 – 5 mg (dose fixa)' } },
+  { id: 'digi', cat: 'intox', name: 'Anticorpos antidigoxina', route: 'EV', ind: 'Digoxina',
+    k: { t: 'text', text: '1 ampola (40 mg) neutraliza 0,6 mg de digoxina' } },
+  { id: 'prota', cat: 'intox', name: 'Protamina', route: 'EV', ind: 'Heparina',
+    k: { t: 'text', text: '1 mg por cada 100 UI de heparina' } },
+  { id: 'biper', cat: 'intox', name: 'Biperideno', route: 'EV lento', ind: 'Metoclopramida',
+    k: { t: 'text', text: '< 1 ano: 1 mg/dose' } },
+  { id: 'antid', cat: 'intox', name: 'Outros antídotos', route: 'Tabela',
+    k: { t: 'text', text:
+      'Monóxido de carbono: O₂ 100%, câmara hiperbárica\n' +
+      'Organofosforados: atropina, obidoxima/pralidoxima\n' +
+      'Isoniazida: piridoxina\n' +
+      'Insulina: glicose, glucagon\n' +
+      'Trimetoprim: ácido folínico\n' +
+      'Neurolépticos: bicarbonato\n' +
+      'Paracetamol: N-acetilcisteína\n' +
+      'Chumbo: EDTA, penicilamina' } },
+];
+
+const HC_BANDS = [
+  { label: '< 6 meses', when: m => m < 6, dose: '25 mg' },
+  { label: '6 meses – 6 anos', when: m => m >= 6 && m < 72, dose: '50 mg' },
+  { label: '6 – 12 anos', when: m => m >= 72 && m <= 144, dose: '100 mg' },
+  { label: '> 12 anos', when: m => m > 144, dose: '200 mg' },
+];
+
+if (typeof module !== 'undefined') module.exports = { CATS, DRUGS, compute, estimateWeight, fmt, ageLabel, GUIDE };
+
+</script>
+<script>
+/* ==========================================================================
+   Interface
+   ========================================================================== */
+(function () {
+  const $ = s => document.querySelector(s);
+  const state = { w: null, ageM: null, ageUnit: 'anos', cat: 'all', q: '', open: new Set() };
+
+  const elW = $('#w'), elAge = $('#age'), elList = $('#list'), elChips = $('#chips'),
+        elQ = $('#q'), elEst = $('#est'), elStatus = $('#status');
+
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const num = s => { const v = parseFloat(String(s).replace(',', '.')); return isFinite(v) ? v : null; };
+  const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+  /* ---------- chips ---------- */
+  function renderChips() {
+    const all = [{ id: 'all', short: 'Todos' }, ...CATS];
+    elChips.innerHTML = all.map(c =>
+      `<button class="chip${state.cat === c.id ? ' on' : ''}" data-cat="${c.id}">${esc(c.short)}</button>`).join('');
+  }
+  elChips.addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    state.cat = b.dataset.cat; renderChips(); render();
+    window.scrollTo({ top: 0 });
+  });
+
+  /* ---------- entradas ---------- */
+  function readInputs() {
+    let w = num(elW.value);
+    state.w = (w && w >= 0.5 && w <= 150) ? w : null;
+    const a = num(elAge.value);
+    if (a === null || a < 0) state.ageM = null;
+    else state.ageM = state.ageUnit === 'anos' ? a * 12 : a;
+    if (state.ageM !== null && state.ageM > 18 * 12) state.ageM = 18 * 12;
+  }
+  function renderStatus() {
+    const est = estimateWeight(state.ageM);
+    if (est && elAge.value !== '') {
+      elEst.hidden = false;
+      elEst.innerHTML = `Peso estimado: <b>${fmt(Math.round(est.w * 10) / 10)} kg</b> <span>(${est.f})</span> — usar`;
+      elEst.dataset.w = Math.round(est.w * 10) / 10;
+    } else elEst.hidden = true;
+
+    const msgs = [];
+    const raw = num(elW.value);
+    if (elW.value !== '' && (raw === null || raw < 0.5 || raw > 150)) msgs.push(['err', 'Peso inválido (0,5 – 150 kg).']);
+    if (state.w && state.w > 50) msgs.push(['warn', 'Peso > 50 kg: peso de adulto — confirmar doses de adulto.']);
+    if (state.w && state.ageM !== null && est) {
+      const r = state.w / est.w;
+      if (r > 1.6 || r < 0.6) msgs.push(['warn', `Peso muito diferente do estimado para ${ageLabel(state.ageM)} (≈ ${fmt(Math.round(est.w))} kg). Confirme.`]);
+    }
+    if (!state.w) msgs.push(['info', 'Introduza o peso (ou a idade e toque em "usar") para calcular as doses.']);
+    elStatus.innerHTML = msgs.map(m => `<div class="msg ${m[0]}">${esc(m[1])}</div>`).join('');
+    document.body.classList.toggle('has-w', !!state.w);
+    $('#ctx').textContent = state.w ? `${fmt(state.w)} kg${state.ageM !== null ? ' · ' + ageLabel(state.ageM) : ''}` : '';
+  }
+
+  elW.addEventListener('input', () => { readInputs(); renderStatus(); render(); });
+  elAge.addEventListener('input', () => { readInputs(); renderStatus(); render(); });
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    state.ageUnit = b.dataset.u;
+    document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+    readInputs(); renderStatus(); render();
+  }));
+  elEst.addEventListener('click', () => {
+    elW.value = String(elEst.dataset.w).replace('.', ',');
+    readInputs(); renderStatus(); render();
+  });
+  $('#reset').addEventListener('click', () => {
+    elW.value = ''; elAge.value = ''; elQ.value = ''; state.q = ''; state.open.clear();
+    state.cat = 'all'; renderChips();
+    readInputs(); renderStatus(); render(); elW.focus();
+  });
+  elQ.addEventListener('input', () => { state.q = norm(elQ.value.trim()); render(); });
+
+  /* ---------- cartões ---------- */
+  function maxLine(r) {
+    if (r.type !== 'dose' || r.u === undefined) return '';
+    if (r.max === null || r.max === undefined) {
+      return '<div class="maxl none">Sem dose máxima indicada no guia</div>';
+    }
+    let s = `Máx.: ${fmt(r.max)} ${esc(r.u)}`;
+    if (r.min !== null && r.min !== undefined) s = `Mín.: ${fmt(r.min)} · ` + s;
+    return `<div class="maxl">${s}${r.maxNote ? ' — ' + esc(r.maxNote) : ''}</div>`;
+  }
+
+  function bandTable(b) {
+    return `<table class="band">${b.rows.map((row, i) =>
+      `<tr class="${b.sel === i ? 'sel' : ''}"><td>${esc(row.label)}</td><td>${esc(row.dose)}</td></tr>`).join('')}</table>` +
+      (b.need ? `<div class="msg info small">Indique ${b.need} para selecionar a linha.</div>` : '');
+  }
+
+  function resultHTML(r) {
+    const hasW = !!state.w;
+    let main = '', sub = '', body = '';
+    switch (r.type) {
+      case 'dose':
+        if (hasW && r.dose) {
+          main = `<div class="dose">${r.doseLabel ? `<small>${esc(r.doseLabel)}</small>` : ''}${esc(r.dose)}</div>`;
+          if (r.vol) main += `<div class="vol">${esc(r.vol)}</div>`;
+        } else main = `<div class="perkg">${esc(r.perKg)}</div>`;
+        if (r.capped) sub += '<span class="badge cap">LIMITADO AO MÁXIMO</span>';
+        if (r.floored) sub += '<span class="badge flo">AJUSTADO AO MÍNIMO</span>';
+        body += maxLine(r);
+        if (r.vol && r.concLabel) body += `<div class="kv"><span>Concentração</span><b>${esc(r.concLabel)}</b></div>`;
+        else if (r.concLabel && !hasW) body += `<div class="kv"><span>Concentração</span><b>${esc(r.concLabel)}</b></div>`;
+        if (hasW && r.perKg && r.dose) body += `<div class="kv"><span>Dose</span><b>${esc(r.perKg)}</b></div>`;
+        if (r.extra && hasW) body += r.extra.map(x =>
+          `<div class="kv${x.hi ? ' hi' : ''}"><span>${esc(x.label)}</span><b>${esc(x.value)}${x.capped ? ' <span class="badge cap">MÁX</span>' : ''}</b></div>`).join('');
+        if (r.formula && hasW) body += `<div class="formula">${esc(r.formula)}</div>`;
+        if (r.note) body += `<div class="msg warn small">${esc(r.note)}</div>`;
+        if (r.band) body += `<div class="sect">Dose por idade (guia)</div>` + bandTable(r.band);
+        break;
+      case 'band':
+        main = r.dose ? `<div class="dose">${esc(r.dose)}</div>`
+                      : `<div class="perkg">por ${r.basis === 'age' ? 'idade' : 'peso'}</div>`;
+        body += bandTable(r);
+        break;
+      case 'inf':
+        if (hasW) {
+          main = `<div class="dose sm"><small class="nt">diluir até 50 mL</small>${esc(r.prep)}</div><div class="vol">${esc(r.rate)}</div>`;
+        } else main = `<div class="perkg">${esc(r.rule)}</div>`;
+        body += `<div class="kv"><span>Preparação</span><b>${esc(r.rule)}</b></div>`;
+        if (hasW) body += `<div class="kv"><span>Diluir</span><b>${esc(r.prep)}${r.prepVol ? ` = ${esc(r.prepVol)} (${esc(r.ampLabel)})` : ''}</b></div>`;
+        else if (r.ampLabel) body += `<div class="kv"><span>Apresentação</span><b>${esc(r.ampLabel)}</b></div>`;
+        body += `<div class="kv"><span>Equivalência</span><b>${esc(r.equiv)}</b></div>`;
+        body += `<div class="kv"><span>Dose</span><b>${esc(r.range)}</b></div>`;
+        body += `<div class="kv"><span>Ritmo</span><b>${esc(r.rate)}</b></div>`;
+        if (r.warn) body += `<div class="msg err small">${esc(r.warn)}</div>`;
+        break;
+      case 'pure':
+        main = hasW ? `<div class="dose sm">${esc(r.rate)}</div><div class="vol">${esc(r.equiv)}</div>`
+                    : `<div class="perkg">${esc(r.rule)}</div>`;
+        body += `<div class="kv"><span>Preparação</span><b>Administrar puro — ${esc(r.concLabel)}</b></div>`;
+        body += `<div class="kv"><span>Regra</span><b>${esc(r.rule)}</b></div>`;
+        body += `<div class="kv"><span>Dose</span><b>${esc(r.range)}</b></div>`;
+        break;
+      case 'text':
+        main = '';
+        body += `<div class="txt">${esc(r.text).replace(/\n/g, '<br>')}</div>`;
+        break;
+    }
+    if (r.alert) sub += `<span class="badge ci">${esc(r.alert)}</span>`;
+    return { main, sub, body };
+  }
+
+  function card(d) {
+    const r = compute(d, { w: state.w, ageM: state.ageM });
+    const { main, sub, body } = resultHTML(r);
+    const open = state.open.has(d.id) || r.type === 'text';
+    let extra = body;
+    if (d.prep) extra += `<div class="kv"><span>Preparação</span><b>${esc(d.prep)}</b></div>`;
+    if (d.notes) extra += `<div class="note">${esc(d.notes)}</div>`;
+    return `<article class="card${open ? ' open' : ''}${r.capped ? ' capped' : ''}" data-id="${d.id}">
+      <header>
+        <div class="nm"><h3>${esc(d.name)}</h3><p><span class="rt">${esc(d.route)}</span>${d.ind ? ' · ' + esc(d.ind) : ''}</p></div>
+        <div class="res">${main}</div>
+      </header>
+      ${sub ? `<div class="subs">${sub}</div>` : ''}
+      <div class="more">${extra}</div>
+    </article>`;
+  }
+
+  function render() {
+    const q = state.q;
+    const list = DRUGS.filter(d => {
+      if (state.cat !== 'all' && d.cat !== state.cat) return false;
+      if (!q) return true;
+      const cat = CATS.find(c => c.id === d.cat);
+      return norm([d.name, d.route, d.ind || '', d.alias || '', cat.name].join(' ')).includes(q);
+    });
+    if (!list.length) { elList.innerHTML = '<p class="empty">Nenhum fármaco encontrado.</p>'; return; }
+    let html = '', last = null;
+    for (const d of list) {
+      if (d.cat !== last) {
+        const c = CATS.find(x => x.id === d.cat);
+        html += `<h2 class="cat c-${c.id}">${esc(c.name)}</h2>`;
+        last = d.cat;
+      }
+      html += card(d);
+    }
+    elList.innerHTML = html;
+  }
+
+  elList.addEventListener('click', e => {
+    const h = e.target.closest('.card header'); if (!h) return;
+    const c = h.parentElement, id = c.dataset.id;
+    if (state.open.has(id)) state.open.delete(id); else state.open.add(id);
+    c.classList.toggle('open');
+  });
+
+  /* ---------- aviso inicial ---------- */
+  const KEY = 'pedemerg-ack-v1';
+  let acked = false;
+  try { acked = localStorage.getItem(KEY) === '1'; } catch (e) {}
+  if (!acked) $('#ack').hidden = false;
+  $('#ackBtn').addEventListener('click', () => {
+    $('#ack').hidden = true;
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+    elW.focus();
+  });
+  $('#info').addEventListener('click', () => { $('#ack').hidden = false; });
+
+  /* ---------- offline ---------- */
+  if ('serviceWorker' in navigator && location.protocol === 'https:' && !location.hostname.endsWith('claude.ai')) {
+    try { navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}
+  }
+
+  renderChips(); readInputs(); renderStatus(); render();
+})();
+
+</script>
+</body>
+</html>
